@@ -11,6 +11,8 @@ yf.pdr_override()
 #Testing 123...
 #Grab the tickers
 stocks = ['AAPL', 'MSFT', 'EEM', 'SPY']
+wgts = pd.Series([0.25, 0.25, 0.3, 0.2],index=stocks)
+pctile = 99
 
 #Number of interpolated points
 its = 100
@@ -31,6 +33,19 @@ adjprice.columns = stocks
 
 #Returns
 ret = (adjprice / adjprice.shift(1) - 1)*100
+ret = ret.iloc[1:]
+#Portfolio weighted return
+port_ret = ret.dot(wgts)
+port_ret = port_ret.iloc[1:]
+#Expected return from current weights
+port_mean = port_ret.mean()
+ 
+#Individual security and Portfolio x% VaRs
+port_hvar = port_ret.quantile(1 - pctile/100)
+port_vcvvar = -2.33*port_ret.std()
+
+for column in ret:
+    print(ret[column].quantile(1 - pctile/100))
 
 #VCV Matrix and Expected Returns (expected = mean)
 vcv = ret.cov().as_matrix()
@@ -59,6 +74,13 @@ optimal = np.dot(np.linalg.inv(vcv),expret)/B
 optimalret = np.dot(np.transpose(optimal),expret)
 optimalsd = np.sqrt(np.dot(np.dot(np.transpose(optimal),vcv),optimal))
 
+port_ret_opt = ret.dot(optimal)
+port_ret_opt = port_ret_opt.iloc[1:]
+
+#Individual security and Portfolio x% VaRs
+port_hvar_opt = port_ret_opt.quantile(1 - pctile/100)
+port_vcvvar_opt = -2.33*optimalsd
+
 #frontier returns
 minret = np.minimum(expret, optimalret)
 maxret = np.maximum(expret, optimalret)
@@ -78,6 +100,8 @@ plt.plot(graphsd, graphret)
 plt.scatter(sqroot, expret)
 plt.plot(graphsd, graphret)
 plt.scatter(optimalsd, optimalret, s=100, marker = "*")
+plt.scatter(optimalsd, optimalret, s=100, marker = "*", color = "r")
+plt.scatter(port_ret.std(), port_mean, s=50, marker = "D", color = "r")
 
 plt.show()
 optimal = pd.DataFrame(optimal, index=stocks, columns=['Weights'])
